@@ -1,4 +1,4 @@
-// checkout.js — Multi-Step Popup Checkout with QR Code Context
+// checkout.js — Multi-Company Popup Checkout
 
 (function () {
   let stripe = null;
@@ -9,11 +9,8 @@
   let formData = {
     senderName: "",
     senderEmail: "",
-    recipientName: "",
-    recipientCompany: "",
-    recipientAddress: "",
-    calendarUrl: "",
-    customNote: ""
+    qrUrl: "",
+    companies: [] // Holds { companyName, city } for each box
   };
 
   function initStripe() {
@@ -47,31 +44,26 @@
 
   function openModal(planKey) {
     if (typeof CONFIG === "undefined" || !CONFIG.pricing) {
-      alert("Config file error: CONFIG is missing or misconfigured.");
+      alert("Config file error: CONFIG is missing.");
       return;
     }
 
     currentPlan = CONFIG.pricing[planKey] || CONFIG.pricing.starter;
     currentStep = 1;
 
-    const modal = document.getElementById("checkout-modal");
-    if (!modal) {
-      console.error("Modal element #checkout-modal missing in HTML.");
-      return;
+    // Initialize company list slots based on package box count
+    const totalBoxes = currentPlan.boxes || 5;
+    if (formData.companies.length !== totalBoxes) {
+      formData.companies = Array.from({ length: totalBoxes }, (_, i) => (
+        formData.companies[i] || { companyName: "", city: "" }
+      ));
     }
 
-    // Display overlay
+    const modal = document.getElementById("checkout-modal");
+    if (!modal) return;
+
     modal.removeAttribute("hidden");
     modal.style.display = "flex";
-    modal.style.position = "fixed";
-    modal.style.top = "0";
-    modal.style.left = "0";
-    modal.style.width = "100vw";
-    modal.style.height = "100vh";
-    modal.style.zIndex = "99999";
-    modal.style.background = "rgba(0,0,0,0.85)";
-    modal.style.alignItems = "center";
-    modal.style.justifyContent = "center";
     document.body.style.overflow = "hidden";
 
     renderStep();
@@ -88,15 +80,32 @@
     if (!mountPoint) return;
 
     if (currentStep === 1) {
+      // Build company name & city fields for each box
+      const companyFieldsHtml = formData.companies.map((comp, idx) => `
+        <div style="background:#f8f9fa; border:1px solid #e2e8f0; padding:10px; border-radius:8px; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:800; color:#ff3d8b; text-transform:uppercase; display:block; margin-bottom:6px;">
+            Box #${idx + 1} Target
+          </span>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <div>
+              <input type="text" class="comp-name" data-index="${idx}" value="${comp.companyName}" required placeholder="Company Name *" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:12px; box-sizing:border-box;" />
+            </div>
+            <div>
+              <input type="text" class="comp-city" data-index="${idx}" value="${comp.city}" required placeholder="City, State *" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:12px; box-sizing:border-box;" />
+            </div>
+          </div>
+        </div>
+      `).join("");
+
       mountPoint.innerHTML = `
-        <form id="step1-form" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:440px; text-align:left;">
+        <form id="step1-form" style="display:flex; flex-direction:column; gap:12px; width:100%; text-align:left;">
           
-          <!-- QR Code Banner Context -->
-          <div style="background:#fff0f6; border:1px solid #ffadd2; padding:10px; border-radius:8px; font-size:12px; color:#c41d7f;">
-            <strong>📱 QR Code Integration:</strong> We print a dynamic QR code on every box leading directly to your booking link, so you can track who opens and books!
+          <!-- Universal QR Code Banner -->
+          <div style="background:#fff0f6; border:1px solid #ffadd2; padding:10px; border-radius:8px; font-size:12px; color:#c41d7f; line-height:1.4;">
+            <strong>📱 Universal QR Code Integration:</strong> We print a custom QR code on every box that links to <b>any URL of your choice</b>—your website, booking link, video pitch, or custom landing page!
           </div>
 
-          <h4 style="margin:4px 0 0; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">1. Your Contact Info</h4>
+          <h4 style="margin:2px 0 0; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">1. Your Info & Destination URL</h4>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Your Name *</label>
@@ -109,30 +118,18 @@
           </div>
 
           <div>
-            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Your Calendar Booking URL (For QR Code) *</label>
-            <input type="url" id="calendarUrl" value="${formData.calendarUrl}" required placeholder="https://calendly.com/your-name/30min" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">QR Code Link Target (Website, Landing Page, or Booking Link) *</label>
+            <input type="url" id="qrUrl" value="${formData.qrUrl}" required placeholder="https://yourwebsite.com/welcome" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
           </div>
 
           <hr style="border:none; border-top:1px solid #eee; margin:2px 0;" />
 
-          <h4 style="margin:0; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">2. Target Prospect / Delivery Address</h4>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div>
-              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Primary Contact Name *</label>
-              <input type="text" id="recipientName" value="${formData.recipientName}" required placeholder="John Smith (CEO)" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
-            </div>
-            <div>
-              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Company</label>
-              <input type="text" id="recipientCompany" value="${formData.recipientCompany}" placeholder="Acme Corp" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
-            </div>
+          <h4 style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">2. Target Companies & Locations (${formData.companies.length} Boxes)</h4>
+          <div style="max-height:180px; overflow-y:auto; padding-right:4px;">
+            ${companyFieldsHtml}
           </div>
 
-          <div>
-            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Office Delivery Address *</label>
-            <input type="text" id="recipientAddress" value="${formData.recipientAddress}" required placeholder="123 Corporate Blvd, Suite 400, New York, NY" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
-          </div>
-
-          <button type="submit" style="width:100%; padding:14px; background:#ff3d8b; color:#fff; font-weight:800; border:none; border-radius:8px; cursor:pointer; font-size:15px; margin-top:6px;">
+          <button type="submit" style="width:100%; padding:14px; background:#ff3d8b; color:#fff; font-weight:800; border:none; border-radius:8px; cursor:pointer; font-size:15px; margin-top:4px;">
             Continue to Payment →
           </button>
         </form>
@@ -142,26 +139,41 @@
         e.preventDefault();
         formData.senderName = document.getElementById("senderName").value;
         formData.senderEmail = document.getElementById("senderEmail").value;
-        formData.calendarUrl = document.getElementById("calendarUrl").value;
-        formData.recipientName = document.getElementById("recipientName").value;
-        formData.recipientCompany = document.getElementById("recipientCompany").value;
-        formData.recipientAddress = document.getElementById("recipientAddress").value;
+        formData.qrUrl = document.getElementById("qrUrl").value;
+
+        // Collect each company name and city
+        document.querySelectorAll(".comp-name").forEach((input) => {
+          const idx = input.getAttribute("data-index");
+          formData.companies[idx].companyName = input.value;
+        });
+
+        document.querySelectorAll(".comp-city").forEach((input) => {
+          const idx = input.getAttribute("data-index");
+          formData.companies[idx].city = input.value;
+        });
 
         currentStep = 2;
         renderStep();
       });
 
     } else if (currentStep === 2) {
+      // Summary of targeted companies
+      const companySummaryList = formData.companies.map((c, i) => 
+        `<li><b>Box #${i+1}:</b> ${c.companyName} (${c.city})</li>`
+      ).join("");
+
       mountPoint.innerHTML = `
-        <form id="payment-form" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:440px; text-align:left;">
+        <form id="payment-form" style="display:flex; flex-direction:column; gap:12px; width:100%; text-align:left;">
           
-          <div style="background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; padding:12px; font-size:12px;">
-            <div style="display:flex; justify-between; font-weight:700; border-bottom:1px solid #ddd; padding-bottom:6px; margin-bottom:6px;">
-              <span>Target: ${formData.recipientName} ${formData.recipientCompany ? `(${formData.recipientCompany})` : ''}</span>
+          <div style="background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; padding:10px; font-size:12px;">
+            <div style="display:flex; justify-between; font-weight:700; border-bottom:1px solid #ddd; padding-bottom:4px; margin-bottom:6px;">
+              <span>Target Companies (${formData.companies.length} Boxes)</span>
               <a href="#" id="edit-details" style="color:#ff3d8b; text-decoration:none; margin-left:auto;">Edit</a>
             </div>
-            <p style="margin:0 0 4px; color:#666; font-size:11px;">📍 ${formData.recipientAddress}</p>
-            <p style="margin:0; color:#ff3d8b; font-size:11px;">🔗 QR Link: ${formData.calendarUrl}</p>
+            <ul style="margin:0; padding-left:16px; font-size:11px; color:#555; max-height:80px; overflow-y:auto;">
+              ${companySummaryList}
+            </ul>
+            <p style="margin:6px 0 0; color:#ff3d8b; font-size:11px;">🔗 QR Destination: ${formData.qrUrl}</p>
           </div>
 
           <div>
@@ -220,7 +232,11 @@
           planId: currentPlan.id,
           amount: currentPlan.amount,
           email: formData.senderEmail,
-          metadata: formData
+          metadata: {
+            senderName: formData.senderName,
+            qrUrl: formData.qrUrl,
+            companyTargets: JSON.stringify(formData.companies)
+          }
         })
       });
 
@@ -248,7 +264,7 @@
             <div style="font-size:48px; margin-bottom:10px;">📦</div>
             <h2 style="font-size:22px; font-weight:800; margin-bottom:8px; color:#1a1a1a;">Order Confirmed!</h2>
             <p style="font-size:13px; color:#555; line-height:1.5;">
-              Thank you, <b>${formData.senderName}</b>! We are printing your customized QR code leading to <b>${formData.calendarUrl}</b> and preparing delivery for <b>${formData.recipientName}</b>.
+              Thank you, <b>${formData.senderName}</b>! We are printing your customized QR codes pointing to <b>${formData.qrUrl}</b> and preparing your outreach campaign.
             </p>
             <button onclick="location.reload()" style="margin-top:15px; padding:12px 24px; background:#ff3d8b; color:#fff; border:none; border-radius:6px; font-weight:700; cursor:pointer;">Done</button>
           </div>
