@@ -13,28 +13,27 @@ window.SWEETS_CONFIG = {
 
   stripePublishableKey: 'pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp',
 
-  // Change prices here and nowhere else. Amounts are in cents.
-  plans: {
+// config.js
+const CONFIG = {
+  stripePublicKey: "pk_live_YOUR_ACTUAL_STRIPE_PUBLIC_KEY", // Replace with your pk_live_ or pk_test_ key
+  pricing: {
     starter: {
-      amount: 15000,
-      name: 'Sweets Marketing: 5 boxes (first half)',
-      description: '5 cookie boxes with cards and delivery. Second $150 due only when your second meeting books.',
-      modalTitle: 'Send my first 5 boxes',
-      modalSub: '$150 today, $150 when your second meeting books.'
+      priceId: "price_STARTER_PRICE_ID", // From Stripe Dashboard
+      amount: 30000,
+      title: "5 Box Campaign",
+      boxes: 5
     },
     full: {
-      amount: 30000,
-      name: 'Sweets Marketing: 5 boxes (paid in full)',
-      description: '5 cookie boxes with cards and delivery, paid in one payment.',
-      modalTitle: 'Five boxes, paid in full',
-      modalSub: '$300 today. Same two meeting guarantee.'
+      priceId: "price_FULL_PRICE_ID",
+      amount: 60000,
+      title: "10 Box Campaign",
+      boxes: 10
     },
     pipeline: {
+      priceId: "price_PIPELINE_PRICE_ID",
       amount: 120000,
-      name: 'Sweets Marketing: 20 boxes',
-      description: '20 cookie boxes staggered across the month, with a research line written per prospect.',
-      modalTitle: 'Twenty boxes',
-      modalSub: '$1,200 today. Eight meeting guarantee.'
+      title: "20 Box Campaign",
+      boxes: 20
     }
   }
 };
