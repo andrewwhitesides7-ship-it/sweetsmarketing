@@ -15,7 +15,7 @@ window.SWEETS_CONFIG = {
 
 // config.js
 const CONFIG = {
-  stripePublicKey: "pk_live_YOUR_ACTUAL_STRIPE_PUBLIC_KEY", // Replace with your pk_live_ or pk_test_ key
+  stripePublicKey: "pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp", // Replace with your pk_live_ or pk_test_ key
   pricing: {
     starter: {
       priceId: "price_STARTER_PRICE_ID", // From Stripe Dashboard
