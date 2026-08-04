@@ -1,39 +1,40 @@
-/* ============================================================
-   THE ONLY FILE YOU NEED TO EDIT TO TURN PAYMENTS ON.
+// config.js — Sweets Marketing Configuration
 
-   1. Paste your Stripe PUBLISHABLE key below (starts with pk_).
-      This one is safe to have in public code. It is meant to be.
-   2. Put your SECRET key (sk_...) in Vercel as an environment
-      variable named STRIPE_SECRET_KEY. Never in this file.
-
-   Test it first with your pk_test_ key and card 4242 4242 4242 4242.
-   ============================================================ */
-
-window.SWEETS_CONFIG = {
-
-  stripePublishableKey: 'pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp',
-
-// config.js
 const CONFIG = {
-  stripePublicKey: "pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp", // Replace with your pk_live_ or pk_test_ key
+  // Replace with your actual Stripe Publishable Key (pk_live_... or pk_test_...)
+  stripePublicKey: "pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp",
+
+  // Pricing structure: $300 minimum order ($60/box)
   pricing: {
     starter: {
-      priceId: "price_STARTER_PRICE_ID", // From Stripe Dashboard
-      amount: 30000,
+      id: "starter",
       title: "5 Box Campaign",
-      boxes: 5
+      boxes: 5,
+      amount: 30000, // $300.00 in cents
+      displayPrice: "$300",
+      pricePerBox: "$60 / box",
+      description: "5 fresh cookie boxes delivered with customized cards & your booking link."
     },
     full: {
-      priceId: "price_FULL_PRICE_ID",
-      amount: 60000,
+      id: "full",
       title: "10 Box Campaign",
-      boxes: 10
+      boxes: 10,
+      amount: 60000, // $600.00 in cents
+      displayPrice: "$600",
+      pricePerBox: "$60 / box",
+      description: "10 fresh cookie boxes delivered with customized cards & your booking link."
     },
     pipeline: {
-      priceId: "price_PIPELINE_PRICE_ID",
-      amount: 120000,
+      id: "pipeline",
       title: "20 Box Campaign",
-      boxes: 20
+      boxes: 20,
+      amount: 120000, // $1,200.00 in cents
+      displayPrice: "$1,200",
+      pricePerBox: "$60 / box",
+      description: "20 fresh cookie boxes delivered with customized cards & your booking link."
     }
-  }
+  },
+
+  // Backend endpoint for Stripe PaymentIntent
+  apiEndpoint: "/api/create-payment-intent"
 };
