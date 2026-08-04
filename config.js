@@ -11,7 +11,7 @@
 
 window.SWEETS_CONFIG = {
 
-  stripePublishableKey: 'pk_test_REPLACE_ME',
+  stripePublishableKey: 'pk_live_51U0nDp2depv7NYWcXGKJMArFs3D2lMbTAHdyRKg84k0dfuwsE3UcPFvhVLvyAzzEwciiC9OfWbiAbN9CIFR0auzy00xDa1QsHp',
 
   // Change prices here and nowhere else. Amounts are in cents.
   plans: {
