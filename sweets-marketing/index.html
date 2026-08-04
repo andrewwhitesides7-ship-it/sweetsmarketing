@@ -378,31 +378,20 @@
   <div class="foot-giant" id="foot-giant" aria-hidden="true">Sweets Marketing</div>
 </footer>
 
-<!-- ============ CHECKOUT MODAL ============ -->
-<div class="modal" id="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
-  <div class="modal-scrim" data-close-modal></div>
-  <div class="modal-card" role="document">
-    <button class="modal-x" type="button" data-close-modal aria-label="Close checkout">&times;</button>
 
-    <div class="modal-head">
-      <img class="modal-cookie" src="https://d8j0ntlcm91z4.cloudfront.net/user_3GlxtuR31GnnSqn9fHPKVo3DxuT/hf_20260804_172902_8c42ba6e-61e8-413e-8ecc-aa23f983bc54.png" alt="" aria-hidden="true">
-      <div>
-        <h2 class="modal-title" id="modal-title">Order 5 Cookie Boxes</h2>
-        <p class="modal-sub" id="modal-sub">$300 total • $60 per box</p>
-      </div>
-    </div>
-
-    <div class="modal-guarantee">Two meetings guaranteed in 30 days or your next 5 boxes are free.</div>
-
-    <div class="modal-body">
-      <div id="checkout-mount"></div>
-      <div class="modal-state" id="modal-state">
-        <span class="modal-spinner" aria-hidden="true"></span>
-        <p>Loading secure checkout</p>
-      </div>
-    </div>
-
-    <p class="modal-fine">Payments handled securely by Stripe.</p>
+<!-- Checkout Modal Container -->
+<div id="checkout-modal" hidden style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#ffffff !important; color:#1a1a1a !important; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; border-radius:16px; padding:28px 24px 24px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); font-family:sans-serif;">
+    
+    <!-- Close Button -->
+    <button type="button" data-close-modal style="position:absolute; top:14px; right:16px; background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%; font-size:18px; font-weight:bold; cursor:pointer; color:#475569; display:flex; align-items:center; justify-content:center; z-index:10;">&times;</button>
+    
+    <!-- Header -->
+    <h3 id="modal-title" style="margin:0 0 4px; font-size:22px; font-weight:800; color:#0f172a !important; text-align:left;">Order Campaign</h3>
+    <p id="modal-sub" style="margin:0 0 16px; font-size:13px; color:#64748b !important; text-align:left;"></p>
+    
+    <!-- Dynamic Mounting Point -->
+    <div id="checkout-mount" style="text-align:left;"></div>
   </div>
 </div>
 
