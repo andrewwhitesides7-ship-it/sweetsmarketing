@@ -1,196 +1,259 @@
-// checkout.js — Self-Contained Modal Popup Checkout
+// checkout.js — Multi-Step Self-Contained Modal Checkout
 
 (function () {
   let stripe = null;
-  let elements = null;
   let cardElement = null;
   let currentPlan = null;
+  let currentStep = 1;
 
-  // Initialize Stripe SDK safely
+  // Form State
+  let formData = {
+    senderName: "",
+    senderEmail: "",
+    recipientName: "",
+    recipientCompany: "",
+    recipientAddress: "",
+    customMessage: ""
+  };
+
   function initStripe() {
-    if (window.Stripe && CONFIG.stripePublicKey) {
+    if (typeof CONFIG !== "undefined" && window.Stripe && CONFIG.stripePublicKey) {
       stripe = Stripe(CONFIG.stripePublicKey);
-    } else {
-      console.error("Stripe.js failed to load or CONFIG.stripePublicKey is missing.");
     }
   }
 
-  // Bind click handlers to all checkout buttons on the page
   document.addEventListener("DOMContentLoaded", () => {
     initStripe();
 
-    const checkoutButtons = document.querySelectorAll("[data-checkout]");
-    checkoutButtons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+    document.body.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-checkout]");
+      if (btn) {
         e.preventDefault();
         const planKey = btn.getAttribute("data-checkout") || "starter";
-        openCheckoutModal(planKey);
-      });
+        openModal(planKey);
+      }
+
+      const closeBtn = e.target.closest("[data-close-modal]");
+      if (closeBtn) {
+        e.preventDefault();
+        closeModal();
+      }
     });
 
-    // Close button & overlay background click events
-    document.querySelectorAll("[data-close-modal]").forEach((closeBtn) => {
-      closeBtn.addEventListener("click", closeCheckoutModal);
-    });
-
-    // ESC key closes modal
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeCheckoutModal();
+      if (e.key === "Escape") closeModal();
     });
   });
 
-  // Open self-contained modal popup
-  async function openCheckoutModal(planKey) {
+  function openModal(planKey) {
     currentPlan = CONFIG.pricing[planKey] || CONFIG.pricing.starter;
+    currentStep = 1;
 
     const modal = document.getElementById("checkout-modal");
-    const modalTitle = document.getElementById("modal-title");
-    const modalSub = document.getElementById("modal-sub");
     const mountPoint = document.getElementById("checkout-mount");
-    const modalState = document.getElementById("modal-state");
 
     if (!modal || !mountPoint) return;
 
-    // Update modal header copy
-    if (modalTitle) modalTitle.textContent = `Order ${currentPlan.title}`;
-    if (modalSub) modalSub.textContent = `${currentPlan.displayPrice} total • ${currentPlan.pricePerBox}`;
+    // Show modal
+    modal.removeAttribute("hidden");
+    modal.style.display = "flex";
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100vw";
+    modal.style.height = "100vh";
+    modal.style.zIndex = "99999";
+    modal.style.background = "rgba(0,0,0,0.8)";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    document.body.style.overflow = "hidden";
 
-    // Show modal popup
-    modal.hidden = false;
-    modal.classList.add("is-open");
-    document.body.style.overflow = "hidden"; // Prevent background scrolling
-
-    // Inject custom inline checkout form HTML inside popup
-    mountPoint.innerHTML = `
-      <form id="payment-form" style="display:flex; flex-direction:column; gap:16px;">
-        <div>
-          <label style="display:block; font-size:12px; text-transform:uppercase; font-weight:700; margin-bottom:6px; color:#4a4a4a;">Your Name</label>
-          <input type="text" id="cust-name" placeholder="First and Last Name" required style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; font-family:inherit; outline:none;" />
-        </div>
-        <div>
-          <label style="display:block; font-size:12px; text-transform:uppercase; font-weight:700; margin-bottom:6px; color:#4a4a4a;">Email Address</label>
-          <input type="email" id="cust-email" placeholder="you@company.com" required style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; font-family:inherit; outline:none;" />
-        </div>
-        <div>
-          <label style="display:block; font-size:12px; text-transform:uppercase; font-weight:700; margin-bottom:6px; color:#4a4a4a;">Credit or Debit Card</label>
-          <div id="card-element" style="padding:14px; border:1px solid #ddd; border-radius:8px; background:#fff;"></div>
-        </div>
-        <div id="card-errors" role="alert" style="color:#e53e3e; font-size:13px; font-weight:600; display:none;"></div>
-        <button type="submit" id="submit-pay" class="btn btn-block btn-alt" style="margin-top:10px; width:100%; justify-content:center; padding:14px;">
-          <span id="pay-button-text">Pay ${currentPlan.displayPrice} Now</span>
-        </button>
-      </form>
-    `;
-
-    if (modalState) modalState.style.display = "none";
-
-    // Mount Stripe Card Element inside the popup
-    if (stripe) {
-      elements = stripe.elements();
-      cardElement = elements.create("card", {
-        style: {
-          base: {
-            fontSize: "16px",
-            color: "#2d3748",
-            "::placeholder": { color: "#a0aec0" }
-          },
-          invalid: { color: "#e53e3e" }
-        }
-      });
-      cardElement.mount("#card-element");
-
-      cardElement.on("change", (event) => {
-        const errorDisplay = document.getElementById("card-errors");
-        if (event.error) {
-          errorDisplay.textContent = event.error.message;
-          errorDisplay.style.display = "block";
-        } else {
-          errorDisplay.textContent = "";
-          errorDisplay.style.display = "none";
-        }
-      });
-    }
-
-    // Attach form submission inside popup
-    const form = document.getElementById("payment-form");
-    form.addEventListener("submit", handleFormSubmit);
+    renderStep();
   }
 
-  // Handle live inline payment submit
-  async function handleFormSubmit(e) {
+  function renderStep() {
+    const mountPoint = document.getElementById("checkout-mount");
+    const title = document.getElementById("modal-title");
+    const sub = document.getElementById("modal-sub");
+
+    if (title) title.textContent = `Order ${currentPlan.title}`;
+    if (sub) sub.textContent = `${currentPlan.displayPrice} Total • Step ${currentStep} of 2`;
+
+    if (currentStep === 1) {
+      // STEP 1: Recipient & Sender Information
+      mountPoint.innerHTML = `
+        <form id="step1-form" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:440px; text-align:left;">
+          <h4 style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">1. Your Details (Sender)</h4>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Your Name *</label>
+              <input type="text" id="senderName" value="${formData.senderName}" required placeholder="Jane Doe" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Your Email *</label>
+              <input type="email" id="senderEmail" value="${formData.senderEmail}" required placeholder="jane@company.com" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+            </div>
+          </div>
+
+          <hr style="border:none; border-top:1px solid #eee; margin:6px 0;" />
+
+          <h4 style="margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px; color:#ff3d8b;">2. Target Prospect (Recipient)</h4>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Recipient Name *</label>
+              <input type="text" id="recipientName" value="${formData.recipientName}" required placeholder="John Smith (CEO)" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Company Name</label>
+              <input type="text" id="recipientCompany" value="${formData.recipientCompany}" placeholder="Acme Corp" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Delivery Office Address *</label>
+            <input type="text" id="recipientAddress" value="${formData.recipientAddress}" required placeholder="123 Corporate Blvd, Suite 400, New York, NY" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box;" />
+          </div>
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Note / Message Included in Box</label>
+            <textarea id="customMessage" rows="2" placeholder="e.g., Loved your recent post on LinkedIn! Let's chat." style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; box-sizing:border-box; font-family:inherit;">${formData.customMessage}</textarea>
+          </div>
+
+          <button type="submit" style="width:100%; padding:14px; background:#ff3d8b; color:#fff; font-weight:800; border:none; border-radius:8px; cursor:pointer; font-size:15px; margin-top:8px;">
+            Continue to Payment →
+          </button>
+        </form>
+      `;
+
+      document.getElementById("step1-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        formData.senderName = document.getElementById("senderName").value;
+        formData.senderEmail = document.getElementById("senderEmail").value;
+        formData.recipientName = document.getElementById("recipientName").value;
+        formData.recipientCompany = document.getElementById("recipientCompany").value;
+        formData.recipientAddress = document.getElementById("recipientAddress").value;
+        formData.customMessage = document.getElementById("customMessage").value;
+
+        currentStep = 2;
+        renderStep();
+      });
+
+    } else if (currentStep === 2) {
+      // STEP 2: Payment Details & Order Summary
+      mountPoint.innerHTML = `
+        <form id="payment-form" style="display:flex; flex-direction:column; gap:12px; width:100%; max-width:440px; text-align:left;">
+          <div style="background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; padding:12px; font-size:12px;">
+            <div style="display:flex; justify-between; font-weight:700; border-bottom:1px solid #ddd; padding-bottom:6px; margin-bottom:6px;">
+              <span>Deliver To: ${formData.recipientName} ${formData.recipientCompany ? `(${formData.recipientCompany})` : ''}</span>
+              <a href="#" id="edit-details" style="color:#ff3d8b; text-decoration:none; margin-left:auto;">Edit</a>
+            </div>
+            <p style="margin:0; color:#666; font-size:11px;">${formData.recipientAddress}</p>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; margin-bottom:4px; color:#333;">Card Payment</label>
+            <div id="card-element" style="padding:12px; border:1px solid #ccc; border-radius:6px; background:#fff;"></div>
+          </div>
+
+          <div id="card-errors" style="color:#e53e3e; font-size:12px; font-weight:600; display:none;"></div>
+
+          <div style="display:flex; gap:10px; margin-top:8px;">
+            <button type="button" id="back-btn" style="width:35%; padding:12px; background:#e2e8f0; color:#333; font-weight:700; border:none; border-radius:8px; cursor:pointer;">
+              ← Back
+            </button>
+            <button type="submit" id="submit-pay" style="width:65%; padding:12px; background:#ff3d8b; color:#fff; font-weight:800; border:none; border-radius:8px; cursor:pointer; font-size:15px;">
+              <span id="pay-text">Pay ${currentPlan.displayPrice}</span>
+            </button>
+          </div>
+        </form>
+      `;
+
+      if (stripe) {
+        const elements = stripe.elements();
+        cardElement = elements.create("card", { style: { base: { fontSize: "15px" } } });
+        cardElement.mount("#card-element");
+      }
+
+      document.getElementById("edit-details").addEventListener("click", (e) => {
+        e.preventDefault();
+        currentStep = 1;
+        renderStep();
+      });
+
+      document.getElementById("back-btn").addEventListener("click", () => {
+        currentStep = 1;
+        renderStep();
+      });
+
+      document.getElementById("payment-form").addEventListener("submit", handlePayment);
+    }
+  }
+
+  async function handlePayment(e) {
     e.preventDefault();
+    const btn = document.getElementById("submit-pay");
+    const payText = document.getElementById("pay-text");
+    const errorDiv = document.getElementById("card-errors");
 
-    const submitBtn = document.getElementById("submit-pay");
-    const payText = document.getElementById("pay-button-text");
-    const errorDisplay = document.getElementById("card-errors");
-    const emailInput = document.getElementById("cust-email");
-    const nameInput = document.getElementById("cust-name");
-
-    submitBtn.disabled = true;
-    payText.textContent = "Processing Payment...";
+    btn.disabled = true;
+    payText.textContent = "Processing...";
 
     try {
-      // 1. Fetch secret client key from backend serverless function
       const res = await fetch(CONFIG.apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId: currentPlan.id,
           amount: currentPlan.amount,
-          email: emailInput.value
+          email: formData.senderEmail,
+          metadata: formData // Sends all recipient details to backend!
         })
       });
 
       const data = await res.json();
+      if (!res.ok || !data.clientSecret) throw new Error(data.error || "Could not reach server endpoint.");
 
-      if (!res.ok || !data.clientSecret) {
-        throw new Error(data.error || "Failed to initialize payment session.");
-      }
-
-      // 2. Confirm card payment natively inside the popup
       const result = await stripe.confirmCardPayment(data.clientSecret, {
         payment_method: {
           card: cardElement,
           billing_details: {
-            name: nameInput.value,
-            email: emailInput.value
+            name: formData.senderName,
+            email: formData.senderEmail
           }
         }
       });
 
       if (result.error) {
-        errorDisplay.textContent = result.error.message;
-        errorDisplay.style.display = "block";
-        submitBtn.disabled = false;
-        payText.textContent = `Pay ${currentPlan.displayPrice} Now`;
+        errorDiv.textContent = result.error.message;
+        errorDiv.style.display = "block";
+        btn.disabled = false;
+        payText.textContent = `Pay ${currentPlan.displayPrice}`;
       } else if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
-        // 3. Display Success State right inside the popup!
         document.getElementById("checkout-mount").innerHTML = `
-          <div style="text-align:center; padding:30px 10px;">
-            <div style="font-size:48px; margin-bottom:10px;">🎉</div>
-            <h3 style="font-size:22px; font-weight:800; color:#1a1a1a; margin-bottom:8px;">Order Confirmed!</h3>
-            <p style="font-size:14px; color:#555; line-height:1.5;">
-              Thank you, <b>${nameInput.value}</b>! We received your <b>${currentPlan.title}</b> ($${currentPlan.amount / 100}) order.<br><br>
-              Check your inbox at <b>${emailInput.value}</b> for receipt and instructions to submit your prospect addresses.
+          <div style="text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:10px;">🍪</div>
+            <h2 style="font-size:22px; font-weight:800; margin-bottom:8px; color:#1a1a1a;">Order Confirmed!</h2>
+            <p style="font-size:13px; color:#555; line-height:1.5;">
+              Thank you, <b>${formData.senderName}</b>! We are preparing your cookie box for <b>${formData.recipientName}</b>.<br><br>
+              A confirmation receipt was sent to <b>${formData.senderEmail}</b>.
             </p>
-            <button onclick="document.querySelector('[data-close-modal]').click()" class="btn btn-alt" style="margin-top:20px;">Done</button>
+            <button onclick="location.reload()" style="margin-top:15px; padding:12px 24px; background:#ff3d8b; color:#fff; border:none; border-radius:6px; font-weight:700; cursor:pointer;">Done</button>
           </div>
         `;
       }
     } catch (err) {
-      errorDisplay.textContent = err.message || "An unexpected error occurred.";
-      errorDisplay.style.display = "block";
-      submitBtn.disabled = false;
-      payText.textContent = `Pay ${currentPlan.displayPrice} Now`;
+      errorDiv.textContent = err.message;
+      errorDiv.style.display = "block";
+      btn.disabled = false;
+      payText.textContent = `Pay ${currentPlan.displayPrice}`;
     }
   }
 
-  // Close popup modal
-  function closeCheckoutModal() {
+  function closeModal() {
     const modal = document.getElementById("checkout-modal");
     if (modal) {
-      modal.hidden = true;
-      modal.classList.remove("is-open");
+      modal.setAttribute("hidden", "true");
+      modal.style.display = "none";
       document.body.style.overflow = "";
     }
   }
