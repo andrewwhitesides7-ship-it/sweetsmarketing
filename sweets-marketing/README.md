@@ -99,6 +99,12 @@ and MotionPathPlugin). If they fail to load, or the visitor has reduce-motion on
 site with everything visible. **Checkout still works either way**, since
 `checkout.js` does not depend on GSAP.
 
+## Analytics
+
+Vercel Web Analytics is configured and will automatically track visitor behavior
+once enabled in the Vercel dashboard (Analytics → Enable Web Analytics). The
+tracking script is privacy-friendly and works without cookies.
+
 ## Images
 
 Eleven images load from the Higgsfield CDN so the site works immediately. Download
@@ -107,7 +113,6 @@ the transparency dies and you get white boxes.
 
 ## Still undone
 
-- No analytics. Vercel Analytics is one toggle in the dashboard.
 - No Stripe webhook, so orders arrive as Stripe emails. Fine at low volume.
 - Checkout collects company and booking link as custom fields, but you still email
   the customer for the five addresses. Automate later.
