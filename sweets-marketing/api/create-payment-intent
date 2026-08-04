@@ -7,14 +7,21 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { amount, email, planId } = req.body;
+    const { amount, email, planId, metadata } = req.body;
 
-    // Create a PaymentIntent with the specified amount ($300, $600, or $1,200)
+    // Save all recipient info to Stripe metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount || 30000,
       currency: 'usd',
       receipt_email: email,
-      metadata: { planId: planId || 'starter' }
+      metadata: {
+        planId: planId || 'starter',
+        senderName: metadata?.senderName || '',
+        recipientName: metadata?.recipientName || '',
+        recipientCompany: metadata?.recipientCompany || '',
+        recipientAddress: metadata?.recipientAddress || '',
+        customMessage: metadata?.customMessage || ''
+      }
     });
 
     res.status(200).json({ clientSecret: paymentIntent.client_secret });
